@@ -4,3 +4,4 @@ torch
 huggingface_hub
 hf-xet
 hf_xet
+bitsandbytes
