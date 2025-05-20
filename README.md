@@ -1,8 +1,8 @@
-# 💬 Chatbot template
+# 💬 SAM chatbot
 
-A simple Streamlit app that shows how to build a chatbot using OpenAI's GPT-3.5.
+A app which allows you to chat iwht our models.
 
-[![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://chatbot-template.streamlit.app/)
+[![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://chatsmilyai.streamlit.app)
 
 ### How to run it on your own machine
 
