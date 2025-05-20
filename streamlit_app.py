@@ -1,9 +1,8 @@
 import os
-# Disable Streamlit's file watcher for PyTorch
-os.environ["STREAMLIT_WATCHED_MODULES"] = ""
 
+# 🚨 This MUST come first — before importing *anything else*
 os.environ["STREAMLIT_FILE_WATCHER_TYPE"] = "none"
-
+os.environ["STREAMLIT_WATCHED_MODULES"] = ""
 
 import streamlit as st
 import datetime
