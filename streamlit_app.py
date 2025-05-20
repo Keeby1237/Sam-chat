@@ -2,6 +2,9 @@ import os
 # Disable Streamlit's file watcher for PyTorch
 os.environ["STREAMLIT_WATCHED_MODULES"] = ""
 
+os.environ["STREAMLIT_FILE_WATCHER_TYPE"] = "none"
+
+
 import streamlit as st
 import datetime
 import json
