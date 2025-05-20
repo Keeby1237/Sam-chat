@@ -2,7 +2,8 @@ import streamlit as st
 import datetime
 import json
 import os
-from huggingface_hub import InferenceClient
+import torch
+from transformers import AutoModelForCausalLM, AutoTokenizer
 
 # Constants
 MODEL_COLLECTION = [
@@ -20,8 +21,15 @@ MODEL_COLLECTION = [
 USER_DB = "user_db.json"
 MESSAGE_LIMIT = 15
 
-# Functions
+# Cache models and tokenizers
+@st.cache_resource
 
+def load_model_and_tokenizer(model_name):
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    model = AutoModelForCausalLM.from_pretrained(model_name)
+    return tokenizer, model
+
+# User functions
 def load_users():
     if os.path.exists(USER_DB):
         with open(USER_DB, "r") as f:
@@ -57,10 +65,13 @@ def can_send_message(username):
         return True
     return False
 
+# Query model
 def query_model(model_name, prompt):
-    client = InferenceClient(model=model_name)
-    response = client.text_generation(prompt=prompt, max_new_tokens=256, temperature=0.7)
-    return response
+    tokenizer, model = load_model_and_tokenizer(model_name)
+    input_ids = tokenizer(prompt, return_tensors="pt").input_ids
+    with torch.no_grad():
+        output = model.generate(input_ids, max_new_tokens=256, temperature=0.7)
+    return tokenizer.decode(output[0], skip_special_tokens=True)
 
 # Streamlit UI
 st.set_page_config(page_title="SmilyAI Chat", layout="wide")
