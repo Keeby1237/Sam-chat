@@ -2,34 +2,34 @@ import streamlit as st
 import datetime
 import json
 import os
+from transformers import AutoTokenizer, AutoModelForCausalLM
 import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer
 
 # Constants
-MODEL_COLLECTION = [
-    "Smilyai-labs/Sam-mini-v1",
-    "Smilyai-labs/Sam-large-v1",
-    "Smilyai-labs/Sam-large-v2",
-    "Smilyai-labs/Sam-reason-v1",
-    "Smilyai-labs/Sam-reason-v2",
-    "Smilyai-labs/Sam-reason-v3",
-    "Smilyai-labs/Sam-reason-S1",
-    "Smilyai-labs/Sam-reason-S2",
-    "Smilyai-labs/Sam-reason-S3",
+MODEL_NAMES = [
+    "smilyai-labs/Sam-flash-mini-v1",
+    "smilyai-labs/Sam-large-v1-speacil",
+    "smilyai-labs/Sam-large-v1-speacil-v1-cpu",
+    "smilyai-labs/Sam-reason-v1",
+    "smilyai-labs/Sam-reason-v2",
+    "smilyai-labs/Sam-reason-v3",
+    "smilyai-labs/Sam-reason-S1",
+    "smilyai-labs/Sam-reason-S2",
+    "smilyai-labs/Sam-reason-S3"
 ]
 
 USER_DB = "user_db.json"
 MESSAGE_LIMIT = 15
 
-# Cache models and tokenizers
-@st.cache_resource
-
-def load_model_and_tokenizer(model_name):
+# Preload models and tokenizers
+MODEL_CLIENTS = {}
+for model_name in MODEL_NAMES:
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     model = AutoModelForCausalLM.from_pretrained(model_name)
-    return tokenizer, model
+    model.eval()
+    MODEL_CLIENTS[model_name] = {"tokenizer": tokenizer, "model": model}
 
-# User functions
+# Functions
 def load_users():
     if os.path.exists(USER_DB):
         with open(USER_DB, "r") as f:
@@ -65,13 +65,19 @@ def can_send_message(username):
         return True
     return False
 
-# Query model
 def query_model(model_name, prompt):
-    tokenizer, model = load_model_and_tokenizer(model_name)
-    input_ids = tokenizer(prompt, return_tensors="pt").input_ids
+    tokenizer = MODEL_CLIENTS[model_name]["tokenizer"]
+    model = MODEL_CLIENTS[model_name]["model"]
+    inputs = tokenizer(prompt, return_tensors="pt")
     with torch.no_grad():
-        output = model.generate(input_ids, max_new_tokens=256, temperature=0.7)
-    return tokenizer.decode(output[0], skip_special_tokens=True)
+        outputs = model.generate(
+            **inputs,
+            max_new_tokens=256,
+            do_sample=True,
+            temperature=0.7,
+            pad_token_id=tokenizer.eos_token_id
+        )
+    return tokenizer.decode(outputs[0], skip_special_tokens=True)
 
 # Streamlit UI
 st.set_page_config(page_title="SmilyAI Chat", layout="wide")
@@ -80,7 +86,7 @@ st.title("🤖 SmilyAI Chat Interface")
 if "username" not in st.session_state:
     st.session_state.username = None
 if "model_name" not in st.session_state:
-    st.session_state.model_name = MODEL_COLLECTION[0]
+    st.session_state.model_name = MODEL_NAMES[0]
 
 # Login/Register System
 with st.sidebar:
@@ -110,7 +116,7 @@ with st.sidebar:
 if st.session_state.username:
     with st.sidebar:
         st.markdown("### 🔧 Select Model")
-        model_name = st.selectbox("Choose Model", MODEL_COLLECTION, index=MODEL_COLLECTION.index(st.session_state.model_name))
+        model_name = st.selectbox("Choose Model", MODEL_NAMES, index=MODEL_NAMES.index(st.session_state.model_name))
         st.session_state.model_name = model_name
 
     if "messages" not in st.session_state:
