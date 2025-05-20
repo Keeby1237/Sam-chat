@@ -1,8 +1,7 @@
 import os
-
-# 🚨 This MUST come first — before importing *anything else*
-os.environ["STREAMLIT_FILE_WATCHER_TYPE"] = "none"
+# Disable Streamlit's file watcher for PyTorch
 os.environ["STREAMLIT_WATCHED_MODULES"] = ""
+os.environ["STREAMLIT_FILE_WATCHER_TYPE"] = "none"
 
 import streamlit as st
 import datetime
@@ -12,15 +11,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 
 # Constants
 MODEL_COLLECTION = [
-    "smilyai-labs/Sam-flash-mini-v1",
-    "smilyai-labs/Sam-large-v1-speacil",
-    "smilyai-labs/Sam-large-v1-speacil-v1-cpu",
-    "smilyai-labs/Sam-reason-v1",
-    "smilyai-labs/Sam-reason-v2",
-    "smilyai-labs/Sam-reason-v3",
-    "smilyai-labs/Sam-reason-S1",
-    "smilyai-labs/Sam-reason-S2",
-    "smilyai-labs/Sam-reason-S3"
+    "smilyai-labs/Sam-flash-mini-v1",  # Only known safe model
 ]
 
 USER_DB = "user_db.json"
@@ -31,11 +22,20 @@ DEVICE = torch.device("cpu")
 # Load model on demand
 @st.cache_resource(show_spinner=False)
 def load_model(model_name):
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
-    model = AutoModelForCausalLM.from_pretrained(model_name)
-    model.to(DEVICE)
-    model.eval()
-    return model, tokenizer
+    try:
+        st.write(f"Loading model: {model_name}")
+        tokenizer = AutoTokenizer.from_pretrained(model_name)
+        model = AutoModelForCausalLM.from_pretrained(
+            model_name,
+            low_cpu_mem_usage=True,
+            torch_dtype=torch.float32
+        )
+        model.to(DEVICE)
+        model.eval()
+        return model, tokenizer
+    except Exception as e:
+        st.error(f"Model load failed: {e}")
+        raise
 
 # User management
 def load_users():
@@ -56,7 +56,11 @@ def register_user(username, password):
     users = load_users()
     if username in users:
         return False
-    users[username] = {"password": password, "last_used": str(datetime.date.today()), "count": 0}
+    users[username] = {
+        "password": password,
+        "last_used": str(datetime.date.today()),
+        "count": 0
+    }
     save_users(users)
     return True
 
@@ -105,18 +109,18 @@ def query_model(model_name, prompt, max_new_tokens=256, temperature=0.7):
     result = tokenizer.decode(output[0], skip_special_tokens=True)
     return result[len(prompt):].strip()
 
-# Streamlit UI
+# Streamlit UI setup
 st.set_page_config(page_title="SmilyAI Chat", layout="wide")
 st.title("🤖 SmilyAI Chat Interface")
 
 if "username" not in st.session_state:
     st.session_state.username = None
 if "model_name" not in st.session_state:
-    st.session_state.model_name = "smilyai-labs/Sam-reason-S1"
+    st.session_state.model_name = "smilyai-labs/Sam-flash-mini-v1"
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# Login/Register System
+# Sidebar for login
 with st.sidebar:
     st.header("🔐 Login / Register")
     if st.session_state.username:
@@ -143,11 +147,15 @@ with st.sidebar:
                 else:
                     st.error("Username already exists")
 
-# Chat UI
+# Chat UI logic
 if st.session_state.username:
     with st.sidebar:
         st.markdown("### 🔧 Select Model")
-        model_name = st.selectbox("Choose Model", MODEL_COLLECTION, index=MODEL_COLLECTION.index("smilyai-labs/Sam-reason-S1"))
+        model_name = st.selectbox(
+            "Choose Model",
+            MODEL_COLLECTION,
+            index=0
+        )
         st.session_state.model_name = model_name
 
     for msg in st.session_state.messages:
