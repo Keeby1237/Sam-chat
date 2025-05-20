@@ -1,6 +1,6 @@
 # 💬 SAM chatbot
 
-A app which allows you to chat iwht our models.
+A app which allows you to chat with our models.
 
 [![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://chatsmilyai.streamlit.app)
 
