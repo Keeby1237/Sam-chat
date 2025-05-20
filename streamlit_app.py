@@ -1,7 +1,10 @@
+import os
+# Disable Streamlit's file watcher for PyTorch
+os.environ["STREAMLIT_WATCHED_MODULES"] = ""
+
 import streamlit as st
 import datetime
 import json
-import os
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
