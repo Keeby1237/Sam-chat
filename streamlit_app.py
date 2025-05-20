@@ -22,16 +22,15 @@ USER_DB = "user_db.json"
 MESSAGE_LIMIT = 15
 DEVICE = torch.device("cpu")
 
-# Preload models (without 4bit/quantized options)
-MODEL_CACHE = {}
-for model_name in MODEL_COLLECTION:
+# Load model on demand
+@st.cache_resource(show_spinner=False)
+def load_model(model_name):
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     model = AutoModelForCausalLM.from_pretrained(model_name)
     model.to(DEVICE)
     model.eval()
-    MODEL_CACHE[model_name] = {"model": model, "tokenizer": tokenizer}
+    return model, tokenizer
 
-# Functions
 def load_users():
     if os.path.exists(USER_DB):
         with open(USER_DB, "r") as f:
@@ -68,10 +67,7 @@ def can_send_message(username):
     return False
 
 def query_model(model_name, prompt, max_new_tokens=256, temperature=0.7):
-    entry = MODEL_CACHE[model_name]
-    tokenizer = entry["tokenizer"]
-    model = entry["model"]
-
+    model, tokenizer = load_model(model_name)
     input_ids = tokenizer.encode(prompt, return_tensors="pt").to(DEVICE)
     with torch.no_grad():
         output = model.generate(
@@ -91,7 +87,7 @@ st.title("🤖 SmilyAI Chat Interface")
 if "username" not in st.session_state:
     st.session_state.username = None
 if "model_name" not in st.session_state:
-    st.session_state.model_name = MODEL_COLLECTION[0]
+    st.session_state.model_name = "smilyai-labs/Sam-reason-S1"
 
 # Login/Register System
 with st.sidebar:
@@ -121,7 +117,7 @@ with st.sidebar:
 if st.session_state.username:
     with st.sidebar:
         st.markdown("### 🔧 Select Model")
-        model_name = st.selectbox("Choose Model", MODEL_COLLECTION, index=MODEL_COLLECTION.index(st.session_state.model_name))
+        model_name = st.selectbox("Choose Model", MODEL_COLLECTION, index=MODEL_COLLECTION.index("smilyai-labs/Sam-reason-S1"))
         st.session_state.model_name = model_name
 
     if "messages" not in st.session_state:
