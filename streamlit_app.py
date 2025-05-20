@@ -19,6 +19,7 @@ MODEL_COLLECTION = [
 ]
 
 USER_DB = "user_db.json"
+CHAT_DB = "chat_db.json"
 MESSAGE_LIMIT = 15
 DEVICE = torch.device("cpu")
 
@@ -31,6 +32,7 @@ def load_model(model_name):
     model.eval()
     return model, tokenizer
 
+# User management
 def load_users():
     if os.path.exists(USER_DB):
         with open(USER_DB, "r") as f:
@@ -66,6 +68,24 @@ def can_send_message(username):
         return True
     return False
 
+# Chat saving/loading
+def load_chat(username):
+    if os.path.exists(CHAT_DB):
+        with open(CHAT_DB, "r") as f:
+            data = json.load(f)
+            return data.get(username, [])
+    return []
+
+def save_chat(username, messages):
+    data = {}
+    if os.path.exists(CHAT_DB):
+        with open(CHAT_DB, "r") as f:
+            data = json.load(f)
+    data[username] = messages
+    with open(CHAT_DB, "w") as f:
+        json.dump(data, f)
+
+# Query the model
 def query_model(model_name, prompt, max_new_tokens=256, temperature=0.7):
     model, tokenizer = load_model(model_name)
     input_ids = tokenizer.encode(prompt, return_tensors="pt").to(DEVICE)
@@ -88,6 +108,8 @@ if "username" not in st.session_state:
     st.session_state.username = None
 if "model_name" not in st.session_state:
     st.session_state.model_name = "smilyai-labs/Sam-reason-S1"
+if "messages" not in st.session_state:
+    st.session_state.messages = []
 
 # Login/Register System
 with st.sidebar:
@@ -95,7 +117,9 @@ with st.sidebar:
     if st.session_state.username:
         st.success(f"Logged in as {st.session_state.username}")
         if st.button("Logout"):
+            save_chat(st.session_state.username, st.session_state.messages)
             st.session_state.username = None
+            st.session_state.messages = []
     else:
         action = st.radio("Choose Action", ["Login", "Register"])
         username = st.text_input("Username")
@@ -104,6 +128,7 @@ with st.sidebar:
             if action == "Login":
                 if authenticate(username, password):
                     st.session_state.username = username
+                    st.session_state.messages = load_chat(username)
                     st.success("Logged in successfully!")
                 else:
                     st.error("Invalid username or password")
@@ -119,9 +144,6 @@ if st.session_state.username:
         st.markdown("### 🔧 Select Model")
         model_name = st.selectbox("Choose Model", MODEL_COLLECTION, index=MODEL_COLLECTION.index("smilyai-labs/Sam-reason-S1"))
         st.session_state.model_name = model_name
-
-    if "messages" not in st.session_state:
-        st.session_state.messages = []
 
     for msg in st.session_state.messages:
         with st.chat_message(msg["role"]):
@@ -139,6 +161,7 @@ if st.session_state.username:
                     response = query_model(st.session_state.model_name, prompt)
                     st.markdown(response)
                     st.session_state.messages.append({"role": "assistant", "content": response})
+                    save_chat(st.session_state.username, st.session_state.messages)
         else:
             st.warning("Daily message limit reached (15). Try again tomorrow.")
 else:
