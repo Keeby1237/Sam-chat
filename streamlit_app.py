@@ -8,8 +8,8 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 # Constants
 MODEL_COLLECTION = [
     "smilyai-labs/Sam-flash-mini-v1",
-    "Smilyai-labs/Sam-large-v1-speacil",
-    "Smilyai-labs/Sam-large-v1-speacil-v1-cpu",
+    "smilyai-labs/Sam-large-v1-speacil",
+    "smilyai-labs/Sam-large-v1-speacil-v1-cpu",
     "smilyai-labs/Sam-reason-v1",
     "smilyai-labs/Sam-reason-v2",
     "smilyai-labs/Sam-reason-v3",
@@ -20,13 +20,14 @@ MODEL_COLLECTION = [
 
 USER_DB = "user_db.json"
 MESSAGE_LIMIT = 15
-DEVICE = "cpu"
+DEVICE = torch.device("cpu")
 
-# Preload models
+# Preload models (without 4bit/quantized options)
 MODEL_CACHE = {}
 for model_name in MODEL_COLLECTION:
     tokenizer = AutoTokenizer.from_pretrained(model_name)
-    model = AutoModelForCausalLM.from_pretrained(model_name).to(DEVICE)
+    model = AutoModelForCausalLM.from_pretrained(model_name)
+    model.to(DEVICE)
     model.eval()
     MODEL_CACHE[model_name] = {"model": model, "tokenizer": tokenizer}
 
